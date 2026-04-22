@@ -2,83 +2,108 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Mi Biblioteca de Cómics</title>
+    <title>Mi Biblioteca de Cómics XD</title>
     <style>
         body { background: #0f0f0f; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
         .login-box { background: #1c1c1c; padding: 20px; border-radius: 15px; display: inline-block; margin-top: 50px; border: 1px solid #333; }
         input { display: block; width: 250px; padding: 10px; margin: 10px auto; border-radius: 5px; border: 1px solid #444; background: #000; color: white; }
         .btn-connect { background: #24A1DE; color: white; border: none; padding: 12px 25px; border-radius: 30px; cursor: pointer; width: 100%; font-weight: bold; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 30px; }
-        .comic-card { width: 200px; height: 300px; background: #222; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px dashed #444; }
-        #codeField { display: none; } /* Oculto hasta que se necesite */
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; margin-top: 30px; }
+        
+        /* Estilos de la tarjeta con giro */
+        .comic-card { width: 180px; height: 270px; perspective: 1000px; cursor: pointer; margin: auto; }
+        .comic-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+        .comic-card.active .comic-inner { transform: rotateY(180deg); }
+        .front, .back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 10px; overflow: hidden; }
+        .back { background: #24A1DE; transform: rotateY(180deg); display: flex; align-items: center; justify-content: center; font-size: 12px; padding: 10px; }
+        
+        #code { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>📚 Mi Repositorio de Cómics</h1>
+    <h1>📚 Mi Biblioteca</h1>
 
     <div id="loginSection" class="login-box">
-        <input type="text" id="phone" placeholder="Número (+52...)">
-        <input type="text" id="code" placeholder="Código de Telegram" id="codeField">
-        <button id="btnAction" class="btn-connect">Conectar</button>
+        <input type="text" id="phone" placeholder="Tu número (+52...)">
+        <input type="text" id="code" placeholder="Código de Telegram">
+        <button id="btnAction" class="btn-connect">CONECTAR</button>
     </div>
     
     <div id="gallery" class="grid"></div>
 
     <script type="module">
-        import { TelegramClient } from "https://cdn.skypack.dev/telegram";
-        import { StringSession } from "https://cdn.skypack.dev/telegram/sessions";
+        // Importación más estable
+        import { TelegramClient } from "https://cdn.esm.sh/telegram@2.0.9";
+        import { StringSession } from "https://cdn.esm.sh/telegram@2.0.9/sessions";
 
         // --- TUS DATOS ---
-        const apiId = 33275752; 
-        const apiHash = f4574ef0f91bcc27c4fd6745168fdd89;
-        const chatId = -1001806099313; 
+        const apiId = 33275752; // NÚMERO SIN COMILLAS
+        const apiHash = "f4574ef0f91bcc27c4fd6745168fdd89"; // TEXTO CON COMILLAS
+        const chatId = "-1001806099313"; // TEXTO CON COMILLAS (ej: "-100...")
         // -----------------
 
         let client;
-        const phoneInput = document.getElementById("phone");
-        const codeInput = document.getElementById("code");
-        const btn = document.getElementById("btnAction");
-        const session = new StringSession(""); 
+        const session = new StringSession("");
 
-        btn.onclick = async () => {
-            if (!client) {
-                btn.innerText = "Enviando Código...";
-                client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 5 });
-                
-                await client.start({
-                    phoneNumber: async () => phoneInput.value,
-                    phoneCode: async () => {
-                        // Mostramos el campo del código cuando Telegram lo pida
-                        phoneInput.style.display = "none";
-                        codeInput.style.display = "block";
-                        btn.innerText = "Verificar Código";
-                        
-                        // Esperamos a que el usuario escriba el código y pulse de nuevo el botón
-                        return new Promise(resolve => {
-                            btn.onclick = () => resolve(codeInput.value);
+        window.onload = () => {
+            const btn = document.getElementById("btnAction");
+            const phoneInput = document.getElementById("phone");
+            const codeInput = document.getElementById("code");
+
+            btn.onclick = async () => {
+                try {
+                    if (!client) {
+                        btn.innerText = "CONECTANDO...";
+                        client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 5 });
+
+                        await client.start({
+                            phoneNumber: async () => phoneInput.value,
+                            phoneCode: async () => {
+                                phoneInput.style.display = "none";
+                                codeInput.style.display = "block";
+                                btn.innerText = "VERIFICAR CÓDIGO";
+                                return new Promise(resolve => {
+                                    btn.onclick = () => resolve(codeInput.value);
+                                });
+                            },
+                            onError: (err) => alert("Error de Telegram: " + err.message),
                         });
-                    },
-                    onError: (err) => alert("Error: " + err.message),
-                });
 
-                document.getElementById("loginSection").style.display = "none";
-                alert("¡Conectado!");
-                cargarComics();
-            }
+                        document.getElementById("loginSection").style.display = "none";
+                        cargarComics();
+                    }
+                } catch (e) {
+                    alert("Error técnico: " + e.message);
+                    btn.innerText = "REINTENTAR";
+                }
+            };
         };
 
         async function cargarComics() {
-            const messages = await client.getMessages(chatId, { limit: 20 });
             const gallery = document.getElementById("gallery");
-            messages.forEach(msg => {
-                if (msg.media) {
-                    const card = document.createElement("div");
-                    card.className = "comic-card";
-                    card.innerText = "Imagen Detectada";
-                    gallery.appendChild(card);
+            try {
+                const messages = await client.getMessages(chatId, { limit: 20 });
+                for (const msg of messages) {
+                    if (msg.media && msg.photo) {
+                        const buffer = await client.downloadMedia(msg.media, { workers: 1 });
+                        const url = URL.createObjectURL(new Blob([buffer]));
+                        
+                        const card = document.createElement("div");
+                        card.className = "comic-card";
+                        card.onclick = () => card.classList.toggle("active");
+                        card.innerHTML = `
+                            <div class="comic-inner">
+                                <div class="front"><img src="${url}" width="100%" height="100%"></div>
+                                <div class="back"><p>${msg.message || 'Cómic'}</p></div>
+                            </div>`;
+                        gallery.appendChild(card);
+                    }
                 }
-            });
+            } catch (err) {
+                alert("Error al cargar cómics: " + err.message);
+            }
         }
     </script>
 </body>
